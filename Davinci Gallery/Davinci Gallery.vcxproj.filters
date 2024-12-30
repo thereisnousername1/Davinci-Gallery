@@ -24,6 +24,9 @@
     <None Include="shaders\vertexShader.vert">
       <Filter>shaders</Filter>
     </None>
+    <None Include="shaders\fragmentShader1.frag">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="glad.c">
@@ -35,9 +38,6 @@
     <ClCompile Include="stbImageLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="shaders\LoadShaders.cpp">
-      <Filter>shaders</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stb_image.h">
@@ -45,9 +45,6 @@
     </ClInclude>
     <ClInclude Include="main.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="shaders\LoadShaders.h">
-      <Filter>shaders</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

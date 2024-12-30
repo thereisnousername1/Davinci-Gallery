@@ -71,8 +71,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\Public\Assimp\Source\assimp\include;C:\Users\Public\Assimp\Binaries\include;C:\Users\Public\OpenGL\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\Public\Assimp\Binaries\lib\Release;C:\Users\Public\OpenGL\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\Public\SDL\SDL2-2.28.4\include;C:\Users\Public\SDL\SDL2_ttf-2.22.0\include;C:\Users\Public\SDL\SDL2_mixer-2.8.0\include;C:\Users\Public\Assimp\Source\assimp\include;C:\Users\Public\Assimp\Binaries\include;C:\Users\Public\OpenGL\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\Public\SDL\SDL2-2.28.4\lib\x64;C:\Users\Public\SDL\SDL2_ttf-2.22.0\lib\x64;C:\Users\Public\SDL\SDL2_mixer-2.8.0\lib\x64;C:\Users\Public\Assimp\Binaries\lib\Release;C:\Users\Public\OpenGL\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -108,11 +108,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\Public\SDL\SDL2-2.28.4\include;C:\Users\Public\SDL\SDL2_ttf-2.22.0\include;C:\Users\Public\SDL\SDL2_mixer-2.8.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;glfw3.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;assimp-vc143-mt.lib;SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_mixer.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\Public\SDL\SDL2-2.28.4\lib\x64;C:\Users\Public\SDL\SDL2_ttf-2.22.0\lib\x64;C:\Users\Public\SDL\SDL2_mixer-2.8.0\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -133,17 +135,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="shaders\fragmentShader.frag" />
+    <None Include="shaders\fragmentShader1.frag" />
     <None Include="shaders\vertexShader.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="glad.c" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="shaders\LoadShaders.cpp" />
     <ClCompile Include="stbImageLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h" />
-    <ClInclude Include="shaders\LoadShaders.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
