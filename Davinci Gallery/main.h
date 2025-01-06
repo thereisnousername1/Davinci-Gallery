@@ -4,16 +4,18 @@
 #include <GLFW/glfw3.h>
 #include <learnopengl/shader.h>
 #include <SDL.h>
-#include "SDL_ttf.h"
 #include "SDL_mixer.h"
 
 using namespace glm;
 
 // init before main
 GLuint program;
-int WINDOW_WIDTH = 1920;
-int WINDOW_HEIGHT = 1080;
 
+// declared as float for easy and duty-free coding experience
+float WINDOW_WIDTH = 800.0f;
+float WINDOW_HEIGHT = 600.0f;
+
+// to be honest OpenGL window is better than SDL one, at least it is easy to resize the border
 SDL_Window* window;
 
 //Called on window resize
@@ -29,3 +31,7 @@ void Input();
 
 //Sets the model-view-projection matrix
 void SetMatrices(Shader& ShaderProgramIn, mat4 model);
+
+// SDL_Texture* renderText(const std::string& message, SDL_Color color, int fontSize, SDL_Renderer* renderer);
+
+// void RenderText(Shader& s, std::string text, float x, float y, float scale, glm::vec3 color);

@@ -1,6 +1,6 @@
 #pragma region include & namespace
 #include <iostream>
-// glew.h and glad.h right above every other OpenGL things
+// glew.h or glad.h right above every other OpenGL things
 
 #include <glad/glad.h>
 
@@ -23,8 +23,17 @@
 #include <windows.h>
 #include <SDL.h>
 #undef main
-#include "SDL_ttf.h"
 #include "SDL_mixer.h"
+#include "SDL_opengl.h"
+
+// SDL_ttf and freetype cannot exists together, freetype can only exists once
+// somehow the SDL_ttf make use of freetype somewhere
+// SDL_ttf has to be FULLY(linker, VC++ directories, both include and library) disabled in order to use freetype
+// according to https://www.reddit.com/r/cpp_questions/comments/167r2ug/freetype_not_working_the_procedure_entry_point_ft/
+
+//#include "SDL_ttf.h"
+#include <ft2build.h>
+#include FT_FREETYPE_H  
 
 using namespace glm;
 
@@ -32,9 +41,14 @@ using namespace std;
 
 #pragma endregion
 
+SDL_Renderer* renderer;
+
+//TTF_Font* font;
+
 #pragma region Global variables
 
 SDL_GLContext context;
+SDL_Texture* image;
 
 //VAO vertex attribute positions in correspondence to vertex attribute type
 enum VAO_IDs { Triangles, Indices, Colours, Textures, NumVAOs = 3 };
@@ -84,10 +98,17 @@ mat4 projection;
 
 // Line rendering mode
 bool lineMode = false;
+
+// models loading
 bool renderRock = true;
 bool render2, render3, render4, render5, render6, render7 = false;
 
 bool movementLock = false;
+
+bool isClayShadingOn, isNormalsShadingOn = false;
+
+bool UpLightsOn = false;
+bool DownLightsOn = true;
 
 #pragma endregion
 
@@ -105,7 +126,6 @@ float ceilingVertices[] = { //      texture vertex           color             n
     35.35534f, 30.0f, -35.35534f,   1.0f, 0.5f,              0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
     0.0f, 30.0f, 0.0f,              0.5f, 0.5f,  /*centre*/  0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f
 };
-
 
 unsigned int ceilingIndices[] = {
     0, 1, 8,
@@ -186,10 +206,27 @@ unsigned int wallIndices[] = {
 
 #pragma endregion
 
+#pragma region freetype init
+
+/*
+struct Character {
+    unsigned int TextureID;  // ID handle of the glyph texture
+    glm::ivec2   Size;       // Size of glyph
+    glm::ivec2   Bearing;    // Offset from baseline to left/top of glyph
+    unsigned int Advance;    // Offset to advance to next glyph
+};
+
+map<char, Character> Characters;
+
+unsigned int VAO, VBO;
+*/
+
+#pragma endregion
+
 int main()
 {
 #pragma region InitLogic
-    /* replace with SDL2 for better ui
+    /* replace with SDL2 for better ui (at least I hope so although it didn't work, I mean text rendering part)
     //Initialisation of GLFW
     glfwInit();
     //Initialisation of 'GLFWwindow' object
@@ -237,7 +274,7 @@ int main()
         SDL_WINDOWPOS_CENTERED, 
         WINDOW_WIDTH, 
         WINDOW_HEIGHT, 
-        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
     // very important
 
     context = SDL_GL_CreateContext(window);
@@ -252,15 +289,7 @@ int main()
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 6);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
     SDL_SetRelativeMouseMode(SDL_TRUE);
-
-    TTF_Init();
 
     //Initialisation of GLAD with GLFW
     // if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -278,15 +307,18 @@ int main()
         cout << "GLAD successfully executed!" << endl;
     }
 
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    //TTF_Init();
+    //font = TTF_OpenFont("arial.ttf", 28);
+
     //Loading of shaders
     // CANNOT INITIALIZE OUTSIDE THE MAIN FUNCTION
     Shader Shader1("shaders/vertexShader.vert", "shaders/fragmentShader1.frag");
-    // Shader Shader2("shaders/vertexShader.vert", "shaders/fragmentShader1.frag");
-    // Shader Shader3("shaders/vertexShader.vert", "shaders/fragmentShader1.frag");
+    //Shader Shader2("shaders/textVS.vert", "shaders/textFS.frag");
 
+    // be careful of the order, the last line will be the one get use by the system
     Shader1.use();
-    // Shader2.use();
-    // Shader3.use();
+    //Shader2.use();
 
     Model Rock("media/rock/Rock07-Base.obj");
 
@@ -500,18 +532,155 @@ int main()
 
 #pragma endregion
 
+#pragma region init logic of freetype, sadly it won't work
+
+    /* it won't work
+    FT_Library ft;
+    if (FT_Init_FreeType(&ft))
+    {
+        std::cout << "ERROR::FREETYPE: Could not init FreeType Library" << std::endl;
+        return -1;
+    }
+
+    FT_Face face;
+    if (FT_New_Face(ft, "arial.ttf", 0, &face))
+    {
+        std::cout << "ERROR::FREETYPE: Failed to load font" << std::endl;
+        return -1;
+    }
+
+    FT_Set_Pixel_Sizes(face, 0, 48);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
+
+    for (unsigned char c = 0; c < 128; c++)
+    {
+        // load character glyph 
+        if (FT_Load_Char(face, c, FT_LOAD_RENDER))
+        {
+            std::cout << "ERROR::FREETYTPE: Failed to load Glyph" << std::endl;
+            continue;
+        }
+        // generate texture
+        unsigned int texture;
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RED,
+            face->glyph->bitmap.width,
+            face->glyph->bitmap.rows,
+            0,
+            GL_RED,
+            GL_UNSIGNED_BYTE,
+            face->glyph->bitmap.buffer
+        );
+        // set texture options
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // now store character for later use
+        Character character = {
+            texture,
+            glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
+            glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
+            face->glyph->advance.x
+        };
+        Characters.insert(std::pair<char, Character>(c, character));
+    }
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    //projection = glm::ortho(0.0f, 800.0f, 0.0f, 600.0f);
+
+    unsigned int VAO, VBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    */
+#pragma endregion
+
 #pragma region RenderLoop
     // Keep running, don't terminate so fast
     //Render loop
     // while (glfwWindowShouldClose(window) == false)
     while (true) {
 
-        Shader1.setVec3("lightPosition", vec3(1.0f, 31.0f, 1.0f));
+        SDL_RenderClear(renderer);
+        
+        //Input
+        // ProcessUserInput(window); //Takes user input
+        Input();
+        
+        // I don't know what is the main issue, it kind of worked but maybe the world transform location or something else is wrong
+        // I couldn't make text displaying on the screen
+        // The tutorial on github is complete mess, I had to look up to tonnes of resources to solve issues
+        // I had to work overnight everyday in my christmas holiday so that I can take good photos in the daytime
+        // I want to sleep for eternity after the deadline 7/1/2025
+        // I am too tired to find a solution so that text could be rendered
+        // I don't even care anymore
+        // ZZZZZZZZZZZZZZZZZZZZZZZZZ
+        //RenderText(Shader2, "This is sample text", 25.0f, 25.0f, 1.0f, vec3(0.5f, 0.8f, 0.2f));
+        //RenderText(Shader2, "(C) LearnOpenGL.com", 540.0f, 570.0f, 0.5f, vec3(0.3f, 0.7f, 0.9f));
+        //Shader1.use();
+        SDL_Color color = { 255, 255, 255, 255 };
+        //image = renderText("TTF fonts are cool!", color, 64, renderer);
+        //glBindTexture(GL_TEXTURE_2D, image->id);
+
+        if (UpLightsOn) {
+            // lights at 4 ceiling corners
+            Shader1.setVec3("lightPosition[0]", vec3(51.0f, 31.0f, 1.0f));
+            Shader1.setVec3("lightPosition[1]", vec3(1.0f, 31.0f, 51.0f));
+            Shader1.setVec3("lightPosition[2]", vec3(-51.0f, 31.0f, 1.0f));
+            Shader1.setVec3("lightPosition[3]", vec3(1.0f, 31.0f, -51.0f));
+        }
+        if (!UpLightsOn) {
+            // lights at 4 ceiling corners
+            Shader1.setVec3("lightPosition[0]", vec3(0.0f, 0.0f, 0.0f));
+            Shader1.setVec3("lightPosition[1]", vec3(0.0f, 0.0f, 0.0f));
+            Shader1.setVec3("lightPosition[2]", vec3(0.0f, 0.0f, 0.0f));
+            Shader1.setVec3("lightPosition[3]", vec3(0.0f, 0.0f, 0.0f));
+        }
+        
+
+        if (DownLightsOn) {
+            // lights at 4 floor corners
+            Shader1.setVec3("lightPosition[4]", vec3(36.35534f, -31.0f, 36.35534f));
+            Shader1.setVec3("lightPosition[5]", vec3(-36.35534f, -31.0f, 36.35534f));
+            Shader1.setVec3("lightPosition[6]", vec3(-36.35534f, -31.0f, -36.35534f));
+            Shader1.setVec3("lightPosition[7]", vec3(36.35534f, -31.0f, -36.35534f));
+        }
+        if (!DownLightsOn) {
+            // lights at 4 floor corners
+            Shader1.setVec3("lightPosition[4]", vec3(0.0f, 0.0f, 0.0f));
+            Shader1.setVec3("lightPosition[5]", vec3(0.0f, 0.0f, 0.0f));
+            Shader1.setVec3("lightPosition[6]", vec3(0.0f, 0.0f, 0.0f));
+            Shader1.setVec3("lightPosition[7]", vec3(0.0f, 0.0f, 0.0f));
+        }
+        
+        /*
+        if (UpLightsOn == false && DownLightsOn == false) {
+            for (int i = 0; i < 8; i++) {
+                Shader1.setVec3("lightPosition[i]", vec3(1.0f, 31.0f, 1.0f));
+            }
+        }
+        */
+
         Shader1.setVec3("lightColor", vec3(1.0f, 1.0f, 1.0f));
 
         Shader1.setVec3("materialAmbient", vec3(0.2f, 0.2f, 0.2f));
         Shader1.setVec3("materialDiffuse", vec3(0.8f, 0.8f, 0.8f));
-        Shader1.setVec3("materialSpecular", vec3(1.0f, 1.0f, 1.0f));
+        Shader1.setVec3("materialSpecular", vec3(5.0f, 5.0f, 5.0f));
         Shader1.setFloat("shininess", 10000.0f);
         Shader1.setVec3("viewPosition", cameraPosition);
 
@@ -522,10 +691,6 @@ int main()
         float currentFrame = SDL_GetTicks() / 1000.0f; // SDL_GetTicks() return ms
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-
-        //Input
-        // ProcessUserInput(window); //Takes user input
-        Input();
 
         //Rendering
         glClearColor(0.25f, 0.0f, 0.0f, 1.0f); //Colour to display on cleared window
@@ -544,7 +709,6 @@ int main()
 
         glBindVertexArray(VAOs[0]); //Bind buffer object to render; VAOs[0] - ceiling
         glDrawElements(GL_TRIANGLES, 27, GL_UNSIGNED_INT, 0);
-        // lab 6 task 4
 
         glBindVertexArray(0);
         // always good practice to set everything back to defaults once configured.
@@ -566,14 +730,25 @@ int main()
 
         view = lookAt(cameraPosition, cameraPosition + cameraFront, cameraUp); //Sets the position of the viewer, the movement direction in relation to it & the world up direction
 
-        if (render2) {
+        if (isClayShadingOn) {
             Shader1.setInt("shadingMode", 2);
+            
+            // debug
+            //cout << "clay shading mode is now active" << endl;
         }
-        else if (render3) {
+        
+        if (isNormalsShadingOn) {
             Shader1.setInt("shadingMode", 1);
+
+            // debug
+            //cout << "normals shading mode is now active" << endl;
         }
-        else {
+
+        if (isClayShadingOn == false && isNormalsShadingOn == false) {
             Shader1.setInt("shadingMode", 0);
+
+            // debug
+            //cout << "default shading mode is now active" << endl;
         }
 
         if (renderRock) {
@@ -649,6 +824,9 @@ int main()
         //replace with this
         SDL_GL_SwapWindow(window);
 
+        // update the screen
+        //SDL_RenderPresent(renderer);
+
         // glfwPollEvents(); //Queries all GLFW events
     }
 #pragma endregion
@@ -656,9 +834,10 @@ int main()
     //Safely terminates GLFW
     // glfwTerminate();
 
-    //TTF_CloseFont(font);
-    TTF_Quit();
     //Mix_FreeMusic(bgm1);
+
+    //FT_Done_Face(face);
+    //FT_Done_FreeType(ft);
 
     Mix_Quit();
 
@@ -863,6 +1042,7 @@ void Input() {
         }
     }
 
+    // select 3d models
     if (state[SDL_SCANCODE_1]) {
         renderRock = !renderRock;
         Sleep(200);
@@ -931,6 +1111,26 @@ void Input() {
         lineMode = false;
         Sleep(200);
     }
+
+    if (state[SDL_SCANCODE_I]) {
+        UpLightsOn = !UpLightsOn;
+        Sleep(200);
+    }
+    
+    if (state[SDL_SCANCODE_K]) {
+        DownLightsOn = !DownLightsOn;
+        Sleep(200);
+    }
+
+    if (state[SDL_SCANCODE_B]) {
+        isClayShadingOn = !isClayShadingOn;
+        Sleep(200);
+    }
+    
+    if (state[SDL_SCANCODE_N]) {
+        isNormalsShadingOn = !isNormalsShadingOn;
+        Sleep(200);
+    }
 }
 
 /*
@@ -942,10 +1142,69 @@ void SetMatrices(Shader& ShaderProgramIn)
 
 void SetMatrices(Shader& ShaderProgramIn, mat4 model)
 {
-    mvp = projection * view * model; // Use the provided model matrix
-    ShaderProgramIn.setMat4("mvpIn", mvp); // Send the MVP to the shader
-
     ShaderProgramIn.setMat4("model", model);
     ShaderProgramIn.setMat4("view", view);
     ShaderProgramIn.setMat4("projection", projection);
 }
+
+/* neither do this
+SDL_Texture* renderText(const std::string& message, 
+    SDL_Color color, int fontSize, SDL_Renderer* renderer)
+{
+    //We need to first render to a surface as that's what TTF_RenderText
+    //returns, then load that surface into a texture
+    SDL_Surface* surf = TTF_RenderText_Blended(font, message.c_str(), color);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surf);
+    //Clean up the surface and font
+    SDL_FreeSurface(surf);
+    return texture;
+}
+*/
+
+/* it won't work anyway
+void RenderText(Shader& s, std::string text, float x, float y, float scale, glm::vec3 color)
+{
+    // activate corresponding render state	
+    s.use();
+    glUniform3f(glGetUniformLocation(s.ID, "textColor"), color.x, color.y, color.z);
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(VAO);
+
+    // iterate through all characters
+    std::string::const_iterator c;
+    for (c = text.begin(); c != text.end(); c++)
+    {
+        Character ch = Characters[*c];
+
+        float xpos = x + ch.Bearing.x * scale;
+        float ypos = y - (ch.Size.y - ch.Bearing.y) * scale;
+
+        float w = ch.Size.x * scale;
+        float h = ch.Size.y * scale;
+        // update VBO for each character
+        float vertices[6][4] = {
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos,     ypos,       0.0f, 1.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+
+            { xpos,     ypos + h,   0.0f, 0.0f },
+            { xpos + w, ypos,       1.0f, 1.0f },
+            { xpos + w, ypos + h,   1.0f, 0.0f }
+        };
+        // render glyph texture over quad
+        glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+        // update content of VBO memory
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        // render quad
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+        x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (2^6 = 64)
+    }
+    glBindVertexArray(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+*/

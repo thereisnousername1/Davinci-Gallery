@@ -1,7 +1,10 @@
 #version 460
 
+// use the structure below, it is good for your health
+// who would calculate everything before you actually import into the vertex shader????
+// you don't know all the parameters
 //Model-View-Projection Matrix
-uniform mat4 mvpIn;
+//uniform mat4 mvpIn;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -35,8 +38,9 @@ void main()
     //Sending texture coordinates to next stage
     textureFrag = textureVertex;
     vertexColor = color;
+
+    // calculate normals
     normals = mat3(transpose(inverse(model))) * normal;
-    //normals = normalize(mat3(transpose(inverse(model))) * normal);
 
     FragPos = vec3(model * vec4(position, 1.0));
     
@@ -44,66 +48,3 @@ void main()
     //gl_Position = mvpIn * vec4(position.x, position.y, position.z, 1.0);
     gl_Position = projection * view * vec4(FragPos, 1.0);
 }
-
-/* up to lab 9 task 1
-#version 460
-//Triangle position with values retrieved from main.cpp
-layout (location = 0) in vec3 position;
-//Texture coordinates from last stage
-layout (location = 1) in vec2 textureCoordinatesVertex;
-
-//Texture coordinates to send
-out vec2 textureCoordinatesFrag;
-
-//Model-View-Projection Matrix
-uniform mat4 mvpIn;
-
-// lab 7 task 4 - disabled in lab 7 task 5
-//Rotational transformation
-// uniform mat4 transformIn;
-
-void main()
-{
-    //Transformation applied to vertices
-
-    // lab 7 task 3 - reuse in lab 7 task 5
-    gl_Position = mvpIn * vec4(position.x, position.y, position.z, 1.0);
-
-    // lab 7 task 4 - disabled in lab 7 task 5
-    // gl_Position = mvpIn * transformIn * vec4(position.x, position.y, position.z, 1.0);
-
-    //Sending texture coordinates to next stage
-    textureCoordinatesFrag = textureCoordinatesVertex;
-}
-
-// up to lab 7 task 2
-#version 460
-//Triangle position with values retrieved from main.cpp
-layout (location = 0) in vec3 position;
-//Texture coordinates from last stage
-layout (location = 1) in vec2 textureCoordinatesVertex;
-
-//Texture coordinates to send
-out vec2 textureCoordinatesFrag;
-
-//Transformation
-uniform mat4 transformIn;
-
-void main()
-{
-    //Transformation applied to vertices
-    gl_Position = transformIn * vec4(position.x, position.y, position.z, 1.0);
-    //Sending texture coordinates to next stage
-    textureCoordinatesFrag = textureCoordinatesVertex;
-}
-*/
-
-/* up to lab 6
-void main()
-{
-    //Triangle vertices sent through gl_Position to next stage
-    gl_Position = vec4(position.x, position.y, position.z, 1.0);
-    //Sending texture coordinates to next stage
-    textureCoordinatesFrag = textureCoordinatesVertex;
-}
-*/

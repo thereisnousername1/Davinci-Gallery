@@ -27,6 +27,12 @@
     <None Include="shaders\fragmentShader1.frag">
       <Filter>shaders</Filter>
     </None>
+    <None Include="shaders\textVS.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\textFS.frag">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="glad.c">
