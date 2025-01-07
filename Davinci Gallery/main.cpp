@@ -32,8 +32,8 @@
 // according to https://www.reddit.com/r/cpp_questions/comments/167r2ug/freetype_not_working_the_procedure_entry_point_ft/
 
 //#include "SDL_ttf.h"
-#include <ft2build.h>
-#include FT_FREETYPE_H  
+//#include <ft2build.h>
+//#include FT_FREETYPE_H  
 
 using namespace glm;
 
@@ -324,12 +324,20 @@ int main()
 
     Model Tree("media/tree/yamaboushi_tan_6000_a_spr1.obj");
 
-    Model Sushi("models/Crayfish_simplified.obj");
-    Model Sushi2("models/sushi/sushi.obj");
+    //Model Sushi("models/Crayfish_simplified.obj");
+    Model Sushi2("models/sushi/Crayfish_variant.obj");
+
+    Model car("models/car/VintageRacingCar.obj");
 
     Model teapot_2("models/Teapot/Teapot_2.obj");
     Model teapot_4("models/Teapot/Teapot_4.obj");
     Model teapot_8("models/Teapot/Teapot_8.obj");
+
+    // bgm1 = Mix_LoadMUS("");
+    currentBGM = 0;
+    bgm[0] = Mix_LoadMUS("90_A#m_NoiseyPianoLead_SP_02_417.wav");
+    bgm[1] = Mix_LoadMUS("100_Bm_DramaticArps_SP_48_01.wav");
+    bgm[2] = Mix_LoadMUS("100_F#_MoodyPiano_01_678.wav");
 
     //Sets the viewport size within the window to match the window size of 1280x720
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -362,7 +370,7 @@ int main()
     sceneModel = translate(sceneModel, vec3(0.0f, 0.0f, 0.0f));
 
     //Projection matrix
-    projection = perspective(radians(45.0f), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f, 1000.0f);
+    projection = perspective(radians(45.0f), WINDOW_WIDTH / WINDOW_HEIGHT, 0.1f, 1000.0f);
 
 #pragma endregion
 
@@ -532,7 +540,7 @@ int main()
 
 #pragma endregion
 
-#pragma region init logic of freetype, sadly it won't work
+#pragma region init logic of freetype, sadly it would not work
 
     /* it won't work
     FT_Library ft;
@@ -608,7 +616,10 @@ int main()
     glBindVertexArray(0);
 
     */
+
 #pragma endregion
+
+    Mix_PlayMusic(bgm[0], -1);
 
 #pragma region RenderLoop
     // Keep running, don't terminate so fast
@@ -621,7 +632,7 @@ int main()
         //Input
         // ProcessUserInput(window); //Takes user input
         Input();
-        
+
         // I don't know what is the main issue, it kind of worked but maybe the world transform location or something else is wrong
         // I couldn't make text displaying on the screen
         // The tutorial on github is complete mess, I had to look up to tonnes of resources to solve issues
@@ -783,14 +794,16 @@ int main()
             model = mat4(1.0);
             model = scale(model, vec3(0.125f, 0.125f, 0.125f));
             SetMatrices(Shader1, model);
-            Sushi.Draw(Shader1);
+            Sushi2.Draw(Shader1);
         }
 
         if (render4) {
             model = mat4(1.0);
-            model = scale(model, vec3(2.5f, 2.5f, 2.5f));
+            model = scale(model, vec3(8.0f, 8.0f, 8.0f));
+            //model = scale(model, vec3(0.25f, 0.25f, 0.25f));
             SetMatrices(Shader1, model);
-            Sushi2.Draw(Shader1);
+            //Sushi2.Draw(Shader1);
+            car.Draw(Shader1);
             //glActiveTexture(GL_TEXTURE0);
         }
 
@@ -838,6 +851,10 @@ int main()
 
     //FT_Done_Face(face);
     //FT_Done_FreeType(ft);
+
+    Mix_FreeMusic(bgm[0]);
+    Mix_FreeMusic(bgm[1]);
+    Mix_FreeMusic(bgm[2]);
 
     Mix_Quit();
 
@@ -1017,11 +1034,17 @@ void Input() {
     // SDL_SCANCODE_PERIOD = 55
 
     if (state[SDL_SCANCODE_COMMA]) {
-
+        // Next soundtrack
+        currentBGM = (currentBGM + 1) % 3; // Loop through tracks
+        PlayMusic();
+        Sleep(200);
     }
 
     if (state[SDL_SCANCODE_PERIOD]) {
-
+        // Previous soundtrack
+        currentBGM = (currentBGM - 1 + 3) % 3; // Loop through tracks
+        PlayMusic();
+        Sleep(200);
     }
 
     if (movementLock == false) {
@@ -1145,6 +1168,14 @@ void SetMatrices(Shader& ShaderProgramIn, mat4 model)
     ShaderProgramIn.setMat4("model", model);
     ShaderProgramIn.setMat4("view", view);
     ShaderProgramIn.setMat4("projection", projection);
+}
+
+void PlayMusic() {
+    // Ensure music is playing if initialized
+    Mix_HaltMusic();
+    if (Mix_PlayingMusic() == 0) {
+        Mix_PlayMusic(bgm[currentBGM], -1);
+    }
 }
 
 /* neither do this
